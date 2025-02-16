@@ -49,7 +49,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebookPath": "/Workspace/Shared/Credit Transaction Curation",
+					"notebookPath": "/Workspace/Shared/Transaction Curation",
 					"baseParameters": {
 						"load_date": {
 							"value": "@pipeline().parameters.pLoadDate",
