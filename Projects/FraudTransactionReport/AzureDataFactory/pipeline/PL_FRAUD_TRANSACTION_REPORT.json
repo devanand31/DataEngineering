@@ -5,7 +5,14 @@
 			{
 				"name": "Execute Master Data Ingestion",
 				"type": "ExecutePipeline",
-				"dependsOn": [],
+				"dependsOn": [
+					{
+						"activity": "Set Load Date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
 				"policy": {
 					"secureInput": false
 				},
@@ -38,7 +45,13 @@
 						"referenceName": "PL_CURATION",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true
+					"waitOnCompletion": true,
+					"parameters": {
+						"pLoadDate": {
+							"value": "@variables('vLoadDate')",
+							"type": "Expression"
+						}
+					}
 				}
 			},
 			{
@@ -61,10 +74,38 @@
 						"referenceName": "PL_CREDIT_TRANSACTION_INGESTION",
 						"type": "PipelineReference"
 					},
-					"waitOnCompletion": true
+					"waitOnCompletion": true,
+					"parameters": {
+						"pLoadDate": {
+							"value": "@variables('vLoadDate')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set Load Date",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "vLoadDate",
+					"value": {
+						"value": "@formatDateTime(addDays(utcNow(), -1),'yyyy/MM/dd')",
+						"type": "Expression"
+					}
 				}
 			}
 		],
+		"variables": {
+			"vLoadDate": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }

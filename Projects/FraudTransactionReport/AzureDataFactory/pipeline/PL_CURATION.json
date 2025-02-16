@@ -49,7 +49,13 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"notebookPath": "/Workspace/Shared/Credit Transaction Curation"
+					"notebookPath": "/Workspace/Shared/Credit Transaction Curation",
+					"baseParameters": {
+						"load_date": {
+							"value": "@pipeline().parameters.pLoadDate",
+							"type": "Expression"
+						}
+					}
 				},
 				"linkedServiceName": {
 					"referenceName": "LS_DATABRICKS",
@@ -444,6 +450,11 @@
 				}
 			}
 		],
+		"parameters": {
+			"pLoadDate": {
+				"type": "string"
+			}
+		},
 		"annotations": []
 	}
 }
