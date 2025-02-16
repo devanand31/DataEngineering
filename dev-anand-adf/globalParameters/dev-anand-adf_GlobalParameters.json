@@ -1,0 +1,14 @@
+{
+	"gStorageAccountUrl": {
+		"type": "string",
+		"value": "https://devanandgen2storage.dfs.core.windows.net/"
+	},
+	"gSqlServerHost": {
+		"type": "string",
+		"value": "dev-anand-sql-server.database.windows.net"
+	},
+	"gSqlDbName": {
+		"type": "string",
+		"value": "dev-anand-sql-db"
+	}
+}

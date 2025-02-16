@@ -1,0 +1,30 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "dev-anand-adf"
+		},
+		"LS_DATABRICKS_accessToken": {
+			"value": ""
+		},
+		"LS_ADLS_properties_typeProperties_url": {
+			"value": "@{linkedService().pStorageAccountUrl}"
+		},
+		"LS_SQL_DB_properties_typeProperties_server": {
+			"value": "@{linkedService().pSqlServerHost}"
+		},
+		"LS_SQL_DB_properties_typeProperties_database": {
+			"value": "@{linkedService().pSqlDbName}"
+		},
+		"LS_DATABRICKS_properties_typeProperties_existingClusterId": {
+			"value": "0216-053027-7gjpvuy1"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}

@@ -1,0 +1,1618 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"type": "string",
+			"metadata": "Data Factory name",
+			"defaultValue": "dev-anand-adf"
+		},
+		"LS_DATABRICKS_accessToken": {
+			"type": "secureString",
+			"metadata": "Secure string for 'accessToken' of 'LS_DATABRICKS'"
+		},
+		"LS_ADLS_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "@{linkedService().pStorageAccountUrl}"
+		},
+		"LS_SQL_DB_properties_typeProperties_server": {
+			"type": "string",
+			"defaultValue": "@{linkedService().pSqlServerHost}"
+		},
+		"LS_SQL_DB_properties_typeProperties_database": {
+			"type": "string",
+			"defaultValue": "@{linkedService().pSqlDbName}"
+		},
+		"LS_DATABRICKS_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "0216-053027-7gjpvuy1"
+		}
+	},
+	"variables": {
+		"factoryId": "[concat('Microsoft.DataFactory/factories/', parameters('factoryName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_ADLS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"pStorageAccountUrl": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('LS_ADLS_properties_typeProperties_url')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_SQL_DB')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"parameters": {
+					"pSqlServerHost": {
+						"type": "string"
+					},
+					"pSqlDbName": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDatabase",
+				"typeProperties": {
+					"server": "[parameters('LS_SQL_DB_properties_typeProperties_server')]",
+					"database": "[parameters('LS_SQL_DB_properties_typeProperties_database')]",
+					"encrypt": "mandatory",
+					"trustServerCertificate": false,
+					"authenticationType": "SystemAssignedManagedIdentity"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/LS_DATABRICKS')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-3712442946422067.7.azuredatabricks.net",
+					"accessToken": {
+						"type": "SecureString",
+						"value": "[parameters('LS_DATABRICKS_accessToken')]"
+					},
+					"existingClusterId": "[parameters('LS_DATABRICKS_properties_typeProperties_existingClusterId')]"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ADLS_CSV')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"pStorageAccountUrl": {
+							"value": "@dataset().pStorageAccountUrl",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"pContainerName": {
+						"type": "string"
+					},
+					"pFolderPath": {
+						"type": "string"
+					},
+					"pStorageAccountUrl": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "DelimitedText",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().pFolderPath",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().pContainerName",
+							"type": "Expression"
+						}
+					},
+					"columnDelimiter": ",",
+					"escapeChar": "\\",
+					"firstRowAsHeader": true,
+					"quoteChar": "\""
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/DS_ADLS_PARQUET')]",
+			"type": "Microsoft.DataFactory/factories/datasets",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"linkedServiceName": {
+					"referenceName": "LS_ADLS",
+					"type": "LinkedServiceReference",
+					"parameters": {
+						"pStorageAccountUrl": {
+							"value": "@dataset().pStorageAccountUrl",
+							"type": "Expression"
+						}
+					}
+				},
+				"parameters": {
+					"pStorageAccountUrl": {
+						"type": "string"
+					},
+					"pContainerName": {
+						"type": "string"
+					},
+					"pFolderPath": {
+						"type": "string"
+					}
+				},
+				"annotations": [],
+				"type": "Parquet",
+				"typeProperties": {
+					"location": {
+						"type": "AzureBlobFSLocation",
+						"folderPath": {
+							"value": "@dataset().pFolderPath",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().pContainerName",
+							"type": "Expression"
+						}
+					},
+					"compressionCodec": "snappy"
+				},
+				"schema": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_ADLS')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_CURATION')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Master Data Curation",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "Start Logging for Master",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Workspace/Shared/Master Table Curation"
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_DATABRICKS",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Credit Transaction Curation",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "Start Logging for Transaction",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Workspace/Shared/Credit Transaction Curation"
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_DATABRICKS",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "Start Logging for Master",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_START]",
+							"storedProcedureParameters": {
+								"vPipelineName": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vEntity": {
+									"value": "MASTER CURATION",
+									"type": "String"
+								},
+								"vStartTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Success Logging for Transaction",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Credit Transaction Curation",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": {
+										"value": "@activity('Credit Transaction Curation').output.runOutput",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Failure Logging for Transaction",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Credit Transaction Curation",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Success Logging for Master",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Master Data Curation",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": {
+										"value": "@activity('Master Data Curation').output.runOutput",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "MASTER CURATION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Failure Logging for Master",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Master Data Curation",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "MASTER CURATION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Start Logging for Transaction",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Success Logging for Master",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_START]",
+							"storedProcedureParameters": {
+								"vPipelineName": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								},
+								"vStartTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_DATABRICKS')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_CREDIT_TRANSACTION_INGESTION')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Set Load Date",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Start Logging for Transactions",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "vLoadDate",
+							"value": {
+								"value": "@formatDateTime(addDays(utcNow(), -1),'yyyy/MM/dd')",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "Start Logging for Transactions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_START]",
+							"storedProcedureParameters": {
+								"vPipelineName": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vEntity": {
+									"value": "CREDIT TRANSACTION INGESTION",
+									"type": "String"
+								},
+								"vStartTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Copy Credit Transaction",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Set Load Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": {
+										"value": "@concat('credit_transactions/',variables('vLoadDate'))",
+										"type": "Expression"
+									},
+									"wildcardFileName": "*.csv",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ADLS_CSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"pContainerName": "source",
+									"pFolderPath": "credit_transactions",
+									"pStorageAccountUrl": {
+										"value": "@pipeline().globalParameters.gStorageAccountUrl",
+										"type": "Expression"
+									}
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ADLS_PARQUET",
+								"type": "DatasetReference",
+								"parameters": {
+									"pStorageAccountUrl": {
+										"value": "@pipeline().globalParameters.gStorageAccountUrl",
+										"type": "Expression"
+									},
+									"pContainerName": "landing",
+									"pFolderPath": {
+										"value": "@concat('credit_transactions/',variables('vLoadDate'))",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					},
+					{
+						"name": "Success Logging for Transactions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Credit Transaction",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": {
+										"value": "@int(activity('Copy Credit Transaction').output.rowsCopied)",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CREDIT TRANSACTION INGESTION"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Failure Logging for Transactions",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Credit Transaction",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CREDIT TRANSACTION INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"vLoadDate": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-02-15T18:16:04Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/LS_SQL_DB')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ADLS_CSV')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ADLS_PARQUET')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_MASTER_INGESTION')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Copy Customers",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Start Logging for Customer",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "customers",
+									"wildcardFileName": "*.csv",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ADLS_CSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"pStorageAccountUrl": "@pipeline().globalParameters.gStorageAccountUrl",
+									"pContainerName": "source",
+									"pFolderPath": "customers"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ADLS_PARQUET",
+								"type": "DatasetReference",
+								"parameters": {
+									"pStorageAccountUrl": {
+										"value": "@pipeline().globalParameters.gStorageAccountUrl",
+										"type": "Expression"
+									},
+									"pContainerName": "landing",
+									"pFolderPath": "customers"
+								}
+							}
+						]
+					},
+					{
+						"name": "Copy Cities",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Start Logging for Cities",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"wildcardFolderPath": "cities",
+									"wildcardFileName": "*.csv",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings",
+									"copyBehavior": "PreserveHierarchy"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "DS_ADLS_CSV",
+								"type": "DatasetReference",
+								"parameters": {
+									"pStorageAccountUrl": "@pipeline().globalParameters.gStorageAccountUrl",
+									"pContainerName": "source",
+									"pFolderPath": "cities"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "DS_ADLS_PARQUET",
+								"type": "DatasetReference",
+								"parameters": {
+									"pStorageAccountUrl": {
+										"value": "@pipeline().globalParameters.gStorageAccountUrl",
+										"type": "Expression"
+									},
+									"pContainerName": "landing",
+									"pFolderPath": "cities"
+								}
+							}
+						]
+					},
+					{
+						"name": "Start Logging for Customer",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_START]",
+							"storedProcedureParameters": {
+								"vPipelineName": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								},
+								"vStartTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Start Logging for Cities",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_START]",
+							"storedProcedureParameters": {
+								"vPipelineName": {
+									"value": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vEntity": {
+									"value": "CITY MASTER INGESTION",
+									"type": "String"
+								},
+								"vStartTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Success Logging for Customer",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Customers",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": {
+										"value": "@int(activity('Copy Customers').output.rowsCopied)",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Failure Logging for Customer",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Customers",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CUSTOMER MASTER INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Success Logging for Cities",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Cities",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "SUCCEEDED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": {
+										"value": "@int(activity('Copy Cities').output.rowsCopied)",
+										"type": "Expression"
+									},
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CITY MASTER INGESTION"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Failure Logging for Cities",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy Cities",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[LOGGING].[SP_PIPELINE_RUN_LOG_END]",
+							"storedProcedureParameters": {
+								"vEndTime": {
+									"value": {
+										"value": "@formatDateTime(utcnow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"type": "DateTime"
+								},
+								"vPipelineRunId": {
+									"value": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"type": "String"
+								},
+								"vPipelineStatus": {
+									"value": "FAILED",
+									"type": "String"
+								},
+								"vRecordsProcessed": {
+									"value": "0",
+									"type": "Int32"
+								},
+								"vEntity": {
+									"value": "CITY MASTER INGESTION",
+									"type": "String"
+								}
+							}
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_SQL_DB",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"pSqlServerHost": {
+									"value": "@pipeline().globalParameters.gSqlServerHost",
+									"type": "Expression"
+								},
+								"pSqlDbName": {
+									"value": "@pipeline().globalParameters.gSqlDbName",
+									"type": "Expression"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": [],
+				"lastPublishTime": "2025-02-15T18:10:20Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/DS_ADLS_CSV')]",
+				"[concat(variables('factoryId'), '/datasets/DS_ADLS_PARQUET')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_SQL_DB')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/PL_FRAUD_TRANSACTION_REPORT')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Execute Master Data Ingestion",
+						"type": "ExecutePipeline",
+						"dependsOn": [],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_MASTER_INGESTION",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Curation",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Credit Transaction Ingestion",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_CURATION",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					},
+					{
+						"name": "Execute Credit Transaction Ingestion",
+						"type": "ExecutePipeline",
+						"dependsOn": [
+							{
+								"activity": "Execute Master Data Ingestion",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"pipeline": {
+								"referenceName": "PL_CREDIT_TRANSACTION_INGESTION",
+								"type": "PipelineReference"
+							},
+							"waitOnCompletion": true,
+							"parameters": {}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/PL_MASTER_INGESTION')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_CURATION')]",
+				"[concat(variables('factoryId'), '/pipelines/PL_CREDIT_TRANSACTION_INGESTION')]"
+			]
+		}
+	]
+}
