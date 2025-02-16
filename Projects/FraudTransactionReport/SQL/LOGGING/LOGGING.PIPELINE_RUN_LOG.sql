@@ -1,0 +1,18 @@
+/****** Object:  Table [LOGGING].[PIPELINE_RUN_LOG]    Script Date: 16-02-2025 22:29:29 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [LOGGING].[PIPELINE_RUN_LOG](
+	[PIPELINE_RUN_ID] [nvarchar](100) NULL,
+	[ENTITY] [nvarchar](200) NULL,
+	[PIPELINE_NAME] [nvarchar](100) NULL,
+	[PIPELINE_STATUS] [nvarchar](10) NULL,
+	[RECORDS_PROCESSED] [int] NULL,
+	[START_TIME] [datetime] NULL,
+	[END_TIME] [datetime] NULL
+) ON [PRIMARY]
+GO
+
