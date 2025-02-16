@@ -1,0 +1,16 @@
+/****** Object:  Table [CURATED].[CITY_DISTANCE]    Script Date: 16-02-2025 22:30:46 ******/
+SET ANSI_NULLS ON
+GO
+
+SET QUOTED_IDENTIFIER ON
+GO
+
+CREATE TABLE [CURATED].[CITY_DISTANCE](
+	[CITY_ID] [int] NULL,
+	[CITY_NAME] [nvarchar](max) NULL,
+	[CITY_ID_TO] [int] NULL,
+	[CITY_NAME_TO] [nvarchar](max) NULL,
+	[DISTANCE] [real] NULL
+) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
+GO
+
