@@ -155,7 +155,7 @@
 						},
 						"vRecordsProcessed": {
 							"value": {
-								"value": "@int(activity('Copy Customers').output.rowsCopied)",
+								"value": "@activity('Credit Transaction Curation').output.runOutput",
 								"type": "Expression"
 							},
 							"type": "Int32"
@@ -287,6 +287,10 @@
 							"type": "String"
 						},
 						"vRecordsProcessed": {
+							"value": {
+								"value": "@activity('Master Data Curation').output.runOutput",
+								"type": "Expression"
+							},
 							"type": "Int32"
 						},
 						"vEntity": {
