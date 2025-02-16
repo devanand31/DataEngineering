@@ -39,30 +39,6 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "Set Load Date",
-						"type": "SetVariable",
-						"dependsOn": [
-							{
-								"activity": "Start Logging for Transactions",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"variableName": "vLoadDate",
-							"value": {
-								"value": "@formatDateTime(addDays(utcNow(), -1),'yyyy/MM/dd')",
-								"type": "Expression"
-							}
-						}
-					},
-					{
 						"name": "Start Logging for Transactions",
 						"type": "SqlServerStoredProcedure",
 						"dependsOn": [],
@@ -124,7 +100,7 @@
 						"type": "Copy",
 						"dependsOn": [
 							{
-								"activity": "Set Load Date",
+								"activity": "Start Logging for Transactions",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -145,7 +121,7 @@
 									"type": "AzureBlobFSReadSettings",
 									"recursive": true,
 									"wildcardFolderPath": {
-										"value": "@concat('credit_transactions/',variables('vLoadDate'))",
+										"value": "@concat('credit_transactions/',pipeline().parameters.pLoadDate)",
 										"type": "Expression"
 									},
 									"wildcardFileName": "*.csv",
@@ -200,7 +176,7 @@
 									},
 									"pContainerName": "landing",
 									"pFolderPath": {
-										"value": "@concat('credit_transactions/',variables('vLoadDate'))",
+										"value": "@concat('credit_transactions/',pipeline().parameters.pLoadDate)",
 										"type": "Expression"
 									}
 								}
@@ -343,9 +319,9 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
-				"variables": {
-					"vLoadDate": {
-						"type": "String"
+				"parameters": {
+					"pLoadDate": {
+						"type": "string"
 					}
 				},
 				"annotations": [],
@@ -1108,7 +1084,13 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"notebookPath": "/Workspace/Shared/Credit Transaction Curation"
+							"notebookPath": "/Workspace/Shared/Credit Transaction Curation",
+							"baseParameters": {
+								"load_date": {
+									"value": "@pipeline().parameters.pLoadDate",
+									"type": "Expression"
+								}
+							}
 						},
 						"linkedServiceName": {
 							"referenceName": "LS_DATABRICKS",
@@ -1506,6 +1488,11 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
+				"parameters": {
+					"pLoadDate": {
+						"type": "string"
+					}
+				},
 				"annotations": []
 			},
 			"dependsOn": [
@@ -1540,7 +1527,14 @@
 					{
 						"name": "Execute Master Data Ingestion",
 						"type": "ExecutePipeline",
-						"dependsOn": [],
+						"dependsOn": [
+							{
+								"activity": "Set Load Date",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
 						"policy": {
 							"secureInput": false
 						},
@@ -1575,7 +1569,12 @@
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
-							"parameters": {}
+							"parameters": {
+								"pLoadDate": {
+									"value": "@variables('vLoadDate')",
+									"type": "Expression"
+								}
+							}
 						}
 					},
 					{
@@ -1599,12 +1598,39 @@
 								"type": "PipelineReference"
 							},
 							"waitOnCompletion": true,
-							"parameters": {}
+							"parameters": {
+								"pLoadDate": {
+									"value": "@variables('vLoadDate')",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					{
+						"name": "Set Load Date",
+						"type": "SetVariable",
+						"dependsOn": [],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "vLoadDate",
+							"value": {
+								"value": "@formatDateTime(addDays(utcNow(), -1),'yyyy/MM/dd')",
+								"type": "Expression"
+							}
 						}
 					}
 				],
 				"policy": {
 					"elapsedTimeMetric": {}
+				},
+				"variables": {
+					"vLoadDate": {
+						"type": "String"
+					}
 				},
 				"annotations": []
 			},
