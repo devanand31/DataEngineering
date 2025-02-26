@@ -1,4 +1,5 @@
 # Databricks notebook source
+# DBTITLE 1,Read the required parameters
 pipeline_run_id=dbutils.widgets.get('pipeline_run_id')
 entity=dbutils.widgets.get('entity')
 pipeline_name=dbutils.widgets.get('pipeline_name')
@@ -7,11 +8,13 @@ pipeline_stage=dbutils.widgets.get('pipeline_stage')
 
 # COMMAND ----------
 
+# DBTITLE 1,Set Catalog
 # MAGIC %sql
 # MAGIC USE CATALOG UTILS;
 
 # COMMAND ----------
 
+# DBTITLE 1,Set Database
 # MAGIC %sql
 # MAGIC USE DATABASE LOGGING;
 
