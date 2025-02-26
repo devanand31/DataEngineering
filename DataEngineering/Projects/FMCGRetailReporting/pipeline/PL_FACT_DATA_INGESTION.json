@@ -1,0 +1,284 @@
+{
+	"name": "PL_FACT_DATA_INGESTION",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get Fact Table List",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureDatabricksDeltaLakeSource",
+						"query": "select * from utils.control.table_list where is_active='Y' and table_type='FACT'"
+					},
+					"dataset": {
+						"referenceName": "DS_MASTER_TABLE_LIST",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Loop through Master table list",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Get Fact Table List",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Get Fact Table List').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy To Bronze",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "Start Logging Ingestion",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "DelimitedTextSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "DelimitedTextReadSettings"
+									}
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings",
+										"copyBehavior": "PreserveHierarchy"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "DS_ADLS_CSV_FILE",
+									"type": "DatasetReference",
+									"parameters": {
+										"pContainerName": "source",
+										"pFolderName": {
+											"value": "@concat(item().SOURCE_PATH,'/',pipeline().parameters.pLoadDate)",
+											"type": "Expression"
+										},
+										"pFileName": {
+											"value": "@item().SOURCE_FILE_NAME",
+											"type": "Expression"
+										},
+										"pStorageAccountName": {
+											"value": "@pipeline().globalParameters.gStorageAccount",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "DS_ADLS_PARQUET_FILE",
+									"type": "DatasetReference",
+									"parameters": {
+										"pStorageAccountName": {
+											"value": "@pipeline().globalParameters.gStorageAccount",
+											"type": "Expression"
+										},
+										"pFolderPath": {
+											"value": "@concat(item().TARGET_PATH,'/',pipeline().parameters.pLoadDate)",
+											"type": "Expression"
+										},
+										"pFileName": {
+											"value": "@concat(item().TARGET_PATH,'.parquet')",
+											"type": "Expression"
+										},
+										"pContainerName": "bronze"
+									}
+								}
+							]
+						},
+						{
+							"name": "Start Logging Ingestion",
+							"type": "DatabricksNotebook",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebookPath": "/Workspace/Shared/Utils/Pipeline Logging Start",
+								"baseParameters": {
+									"entity": {
+										"value": "@item().ENTITY_NAME",
+										"type": "Expression"
+									},
+									"pipeline_name": {
+										"value": "@pipeline().Pipeline",
+										"type": "Expression"
+									},
+									"pipeline_run_id": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"start_time": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"pipeline_stage": "INGESTION"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_DATABRICKS_NOTEBOOKS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Success Logging - Ingestion",
+							"type": "DatabricksNotebook",
+							"dependsOn": [
+								{
+									"activity": "Copy To Bronze",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebookPath": "/Workspace/Shared/Utils/Pipeline Logging End",
+								"baseParameters": {
+									"end_time": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"entity": {
+										"value": "@item().ENTITY_NAME",
+										"type": "Expression"
+									},
+									"pipeline_run_id": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"pipeline_status": "SUCCEEDED",
+									"records_processed": {
+										"value": "@string(activity('Copy To Bronze').output.rowsRead)",
+										"type": "Expression"
+									},
+									"pipeline_stage": "INGESTION"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_DATABRICKS_NOTEBOOKS",
+								"type": "LinkedServiceReference"
+							}
+						},
+						{
+							"name": "Failed Logging - Ingestion",
+							"type": "DatabricksNotebook",
+							"dependsOn": [
+								{
+									"activity": "Copy To Bronze",
+									"dependencyConditions": [
+										"Failed"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"notebookPath": "/Workspace/Shared/Utils/Pipeline Logging End",
+								"baseParameters": {
+									"end_time": {
+										"value": "@formatDateTime(utcNow(),'yyyy-MM-dd HH:mm:ss')",
+										"type": "Expression"
+									},
+									"entity": {
+										"value": "@item().ENTITY_NAME",
+										"type": "Expression"
+									},
+									"pipeline_run_id": {
+										"value": "@pipeline().RunId",
+										"type": "Expression"
+									},
+									"pipeline_status": "FAILED",
+									"records_processed": "0",
+									"pipeline_stage": "INGESTION"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "LS_DATABRICKS_NOTEBOOKS",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"pLoadDate": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-02-26T16:21:03Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

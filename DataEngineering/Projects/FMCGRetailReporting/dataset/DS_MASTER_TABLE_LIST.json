@@ -1,0 +1,13 @@
+{
+	"name": "DS_MASTER_TABLE_LIST",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "LS_UNITY_CATALOG",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureDatabricksDeltaLakeDataset",
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
