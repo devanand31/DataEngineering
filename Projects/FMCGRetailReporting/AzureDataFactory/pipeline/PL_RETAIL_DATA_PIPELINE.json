@@ -1,0 +1,149 @@
+{
+	"name": "PL_RETAIL_DATA_PIPELINE",
+	"properties": {
+		"activities": [
+			{
+				"name": "Execute Master Data Ingestion and Curation",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set Data File Date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_MASTER_DATA_LOAD",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pFullLoadInd": "0",
+						"pLoadDate": {
+							"value": "@formatDateTime(variables('vLoadDate'),'yyyyMMdd')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Execute Fact Data Ingestion",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Set Data File Date",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_FACT_DATA_INGESTION",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pLoadDate": {
+							"value": "@formatDateTime(variables('vLoadDate'),'yyyy/MM/dd')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Execute Fact Silver Layer",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Execute Master Data Ingestion and Curation",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Execute Fact Data Ingestion",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_FACT_SILVER_LAYER",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true,
+					"parameters": {
+						"pLoadDate": {
+							"value": "@formatDateTime(variables('vLoadDate'),'yyyy/MM/dd')",
+							"type": "Expression"
+						}
+					}
+				}
+			},
+			{
+				"name": "Set Data File Date",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"policy": {
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "vLoadDate",
+					"value": {
+						"value": "@addDays(utcnow(),-1,'yyyy-MM-dd')",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Execute Gold Layer",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "Execute Fact Silver Layer",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "PL_GOLD_LAYER",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			}
+		],
+		"variables": {
+			"vLoadDate": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2025-02-26T16:23:54Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
