@@ -15,5 +15,8 @@ The data pipeline is built using:
 ## Architecture
 ![Architecture Diagram](https://github.com/devanand31/DataEngineering/blob/main/Projects/FMCGRetailReporting/Misc/FraudDetectionArchitecture.png)
 
+## Report
+![Report](https://github.com/devanand31/DataEngineering/blob/main/Projects/FMCGRetailReporting/Misc/FraudDetectionReport.png)
+
 ## Project Link
 [GitHub Repository](https://github.com/devanand31/DataEngineering/tree/main/Projects/FMCGRetailReporting)
