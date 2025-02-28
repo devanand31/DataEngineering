@@ -10,10 +10,10 @@ The data pipeline is built using:
 - **Azure SQL Database**
 
 ## Data Model
-*(Add your data model diagram or description here)*
+![Data Model]([https://github.com/yourusername/yourrepo/raw/main/images/data_model.png](https://github.com/devanand31/DataEngineering/blob/main/Projects/FMCGRetailReporting/Misc/FraudDetectionArchitecture.png))
 
 ## Architecture
-*(Add architecture diagram or explanation here)*
+![Architecture Diagram]([https://github.com/yourusername/yourrepo/raw/main/images/architecture.png](https://github.com/devanand31/DataEngineering/blob/main/Projects/FMCGRetailReporting/Misc/FraudDetectionArchitecture.png))
 
 ## Project Link
 [GitHub Repository](https://github.com/devanand31/DataEngineering/tree/main/Projects/FMCGRetailReporting)
